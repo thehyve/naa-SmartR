@@ -1,27 +1,38 @@
 package smartR.plugin
 
-import groovy.json.JsonBuilder
 import grails.converters.JSON
+import groovy.json.JsonBuilder
+import heim.session.SessionService
+import org.apache.commons.io.FilenameUtils
 import org.codehaus.groovy.grails.web.json.JSONArray
 import org.codehaus.groovy.grails.web.json.JSONObject
-import org.apache.commons.io.FilenameUtils
 
 class SmartRController {
 
+    SessionService sessionService
     def smartRService
     def scriptExecutorService
-    def eaeService
+
+    static layout = 'smartR'
+
+    def index() {
+        [
+                scriptList: sessionService.availableWorkflows(),
+                //legacyScriptList: sessionService.legacyWorkflows(), FIXME display rest original scripts
+        ]
+    }
 
     def computeResults = {
         params.init = params.init == null ? true : params.init // defaults to true
-        def retCode = smartRService.runScript(params)
-        render retCode.toString()
+        smartRService.runScript(params)
+        render ''
     }
 
     def reComputeResults = {
         params.init = false
-        def retCode = smartRService.runScript(params)
-        render retCode.toString()
+        redirect controller: 'SmartR',
+                 action: 'computeResults', 
+                 params: params
     }
 
     // For handling results yourself
@@ -31,7 +42,7 @@ class SmartRController {
         if (! success) {
             render new JsonBuilder([error: results]).toString()
         } else {
-            render results.json // TODO: return json AND image
+            render results
         }
     }
 
@@ -42,10 +53,10 @@ class SmartRController {
             render results
         } else {
             render template: "/visualizations/out${FilenameUtils.getBaseName(params.script)}",
-                    model: [results: results.json, image: results.img.toString()]
-        }
+                    model: [results: results]
+        }       
     }
-
+    
     /**
     *   Renders the input form for initial script parameters
     */
@@ -53,7 +64,18 @@ class SmartRController {
         if (! params.script) {
             render 'Please select a script to execute.'
         } else {
-            render template: "/smartR/in${FilenameUtils.getBaseName(params.script)}"
+            render template: "/heim/in${FilenameUtils.getBaseName(params.script).capitalize()}"
+        }
+    }
+
+    /**
+     *   Renders the input form for initial script parameters
+     */
+    def renderInput = {
+        if (! params.script) {
+            render 'Please select a script to execute.'
+        } else {
+            render template: "/smartR/in${FilenameUtils.getBaseName(params.script).capitalize()}"
         }
     }
 
@@ -61,21 +83,40 @@ class SmartRController {
         render template: "/visualizations/outLoading"
     }
 
-
     /**
-     *   Go to eTRIKS Analytical Engine
-     */
-    def goToEAEngine = {
-        render template: '/eae/home', model:[ hpcScriptList: eaeService.hpcScriptList]
-    }
-
+    *   Called to get the path to smartR.js such that the plugin can be loaded in the datasetExplorer
+    */
     def loadScripts = {
+
+        // list of required javascript files
+        def scripts = [servletContext.contextPath + pluginContextPath + '/js/smartR/smartR.js']
+
+        // list of required css files
+        def styles = []
+
         JSONObject result = new JSONObject()
-        JSONObject script = new JSONObject()
-        script.put("path", "${servletContext.contextPath}${pluginContextPath}/js/etriksEngines/engineSelection.js" as String)
-        script.put("type", "script")
+        JSONArray rows = new JSONArray()
+
+        // for all js files
+        for (file in scripts) {
+            def m = [:]
+            m["path"] = file.toString()
+            m["type"] = "script"
+            rows.put(m);
+        }
+
+        // for all css files
+        for (file in styles) {
+            def n = [:]
+            n["path"] = file.toString()
+            n["type"] = "css"
+            rows.put(n);
+        }
+
         result.put("success", true)
-        result.put("files", new JSONArray() << script)
+        result.put("totalCount", scripts.size())
+        result.put("files", rows)
+
         render result as JSON;
     }
 }

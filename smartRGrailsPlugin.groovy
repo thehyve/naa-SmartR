@@ -1,4 +1,13 @@
+import grails.util.Environment
+import heim.rserve.RScriptsSynchronizer
+import org.codehaus.groovy.grails.plugins.GrailsPluginUtils
+import org.springframework.stereotype.Component
+import heim.SmartRRuntimeConstants
+
 class smartRGrailsPlugin {
+
+    public static final String DEFAULT_REMOTE_RSCRIPTS_DIRECTORY = '/tmp/smart_r_scripts'
+
     // the plugin version
     def version = "0.4"
     // the version or versions of Grails the plugin is designed for
@@ -43,35 +52,60 @@ class smartRGrailsPlugin {
     }
 
     def doWithSpring = {
-        dataQueryService(smartR.plugin.DataQueryService) {
-            studiesResourceService = ref('studiesResourceService')
-            conceptsResourceService = ref('conceptsResourceService')
-            clinicalDataResourceService = ref('clinicalDataResourceService')
-            dataSource = ref('dataSource')
-            i2b2HelperService = ref('i2b2HelperService')
+        xmlns context:"http://www.springframework.org/schema/context"
+
+        context.'component-scan'('base-package': 'heim') {
+            context.'include-filter'(
+                    type:       'annotation',
+                    expression: Component.canonicalName)
         }
     }
 
-    def doWithDynamicMethods = { ctx ->
-        // TODO Implement registering dynamic methods to classes (optional)
-    }
-
     def doWithApplicationContext = { ctx ->
-        // TODO Implement post initialization spring config (optional)
+        def config = application.config
+        SmartRRuntimeConstants constants = ctx.getBean(SmartRRuntimeConstants)
+
+        File smartRDir = GrailsPluginUtils.getPluginDirForName('smart-r')?.file
+        if (!smartRDir) {
+            String pluginPath = ctx.pluginManager.allPlugins.find {
+                it.name == 'smartR'
+            }.pluginPath
+
+            smartRDir = ctx.getResource(pluginPath).file
+        } else {
+            smartRDir = new File(smartRDir, 'web-app')
+        }
+        if (!smartRDir) {
+            throw new RuntimeException('Could not determine directory for ' +
+                    'smart-r plugin')
+        }
+
+        constants.pluginScriptDirectory = new File(smartRDir.canonicalPath, 'HeimScripts')
+        log.info("Directory for heim scripts is ${constants.pluginScriptDirectory}")
+
+        constants.legacyScriptDirectory = new File(smartRDir.canonicalPath, 'Scripts')
+        log.info("Directory for legacy scripts is ${constants.legacyScriptDirectory}")
+
+        if (!skipRScriptsTransfer(config)) {
+            def remoteScriptDirectory =  config.smartR.remoteScriptDirectory
+            if (!remoteScriptDirectory) {
+                remoteScriptDirectory = DEFAULT_REMOTE_RSCRIPTS_DIRECTORY
+            }
+            constants.remoteScriptDirectoryDir = remoteScriptDirectory
+            log.info("Location for R scripts in the Rserve server is ${constants.remoteScriptDirectoryDir}")
+
+            ctx.getBean(RScriptsSynchronizer).start()
+        } else {
+            log.info('Skipping copying of R script in development mode with local Rserve')
+            constants.remoteScriptDirectoryDir = constants.pluginScriptDirectory.absoluteFile
+            ctx.getBean(RScriptsSynchronizer).skip()
+        }
     }
 
-    def onChange = { event ->
-        // TODO Implement code that is executed when any artefact that this plugin is
-        // watching is modified and reloaded. The event contains: event.source,
-        // event.application, event.manager, event.ctx, and event.plugin.
-    }
-
-    def onConfigChange = { event ->
-        // TODO Implement code that is executed when the project configuration changes.
-        // The event is the same as for 'onChange'.
-    }
-
-    def onShutdown = { event ->
-        // TODO Implement code that is executed when the application shuts down (optional)
+    private boolean skipRScriptsTransfer(config) {
+        (!config.RModules.host ||
+                config.RModules.host in ['127.0.0.1', '::1', 'localhost']) &&
+                Environment.currentEnvironment == Environment.DEVELOPMENT &&
+                !config.smartR.alwaysCopyScripts
     }
 }

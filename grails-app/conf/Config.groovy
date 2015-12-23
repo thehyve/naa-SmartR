@@ -12,7 +12,16 @@ log4j = {
            'org.springframework',
            'org.hibernate',
            'net.sf.ehcache.hibernate'
+    info   'org.transmartproject'
+    debug  'heim'
+
+    // uncomment to debug queries
+    //trace 'org.hibernate.type'
+    //debug 'org.hibernate.SQL'
 }
 
 grails.views.default.codec="none" // none, html, base64
 grails.views.gsp.encoding="UTF-8"
+
+grails.databinding.convertEmptyStringsToNull = false
+grails.databinding.trimStrings = false
