@@ -73,7 +73,7 @@ class DataQueryService {
             def assayList = tabularResult.indicesList
             tabularResult.each { DataRow row ->
                 assayList.each {AssayColumn assayColumn ->
-                    data.PATIENTID << assayColumn.patientInTrialId
+                    data.PATIENTID << assayColumn.patient.id
                     data.VALUE << row[assayColumn]
                     data.PROBE << row.label
                     data.GENESYMBOL << row.bioMarker
