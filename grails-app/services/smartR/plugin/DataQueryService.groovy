@@ -4,10 +4,15 @@ import org.transmartproject.rest.marshallers.ObservationWrapper
 import org.transmartproject.core.ontology.OntologyTerm
 import org.transmartproject.core.dataquery.clinical.*
 import org.transmartproject.core.dataquery.TabularResult
-import groovy.sql.Sql
-import groovy.json.JsonBuilder
-import au.com.bytecode.opencsv.CSVWriter
-
+import org.springframework.beans.factory.annotation.Autowired
+import org.transmartproject.core.dataquery.DataRow
+import org.transmartproject.core.dataquery.TabularResult
+import org.transmartproject.core.dataquery.highdim.AssayColumn
+import org.transmartproject.core.dataquery.highdim.HighDimensionDataTypeResource
+import org.transmartproject.core.dataquery.highdim.HighDimensionResource
+import org.transmartproject.core.dataquery.highdim.assayconstraints.AssayConstraint
+import org.transmartproject.core.dataquery.highdim.dataconstraints.DataConstraint
+import org.transmartproject.core.dataquery.highdim.projections.Projection
 
 class DataQueryService {
 
@@ -16,6 +21,8 @@ class DataQueryService {
     def clinicalDataResourceService
     def dataSource
     def i2b2HelperService
+    @Autowired
+    HighDimensionResource highDimensionResource
 
     def getAllData(conceptKeys, patientIDs) {
         def data = []
@@ -53,52 +60,68 @@ class DataQueryService {
 
     def exportHighDimData(conceptKeys, patientIDs, resultInstanceId) {
         def data = [PATIENTID: [], VALUE: [], PROBE: [], GENESYMBOL: []]
-        def query = 
-        """
-        SELECT
-            ssm.patient_id,
-            ma.probe_id,
-            ma.gene_symbol,
-            smd.raw_intensity
-        FROM
-            deapp.de_subject_microarray_data smd
-            INNER JOIN
-                deapp.de_subject_sample_mapping ssm
-            ON
-                smd.assay_id = ssm.assay_id
-            AND
-                ssm.patient_id in (${patientIDs.collect { '?' }.join(',')})
-            INNER JOIN
-                deapp.de_mrna_annotation ma
-            ON 
-                smd.probeset_id = ma.probeset_id
-            INNER JOIN
-                deapp.de_gpl_info gi
-            ON
-                ssm.gpl_id = gi.platform
-        WHERE
-            ssm.concept_code = ?
-        AND
-            gi.marker_type = 'Gene Expression'
-        """
-        assert conceptKeys.size() == 1 // for now we support only one HDD node per concept 
-        def conceptCode = i2b2HelperService.getConceptCodeFromKey(conceptKeys[0])
-        def params = patientIDs
-        params << conceptCode
-        
-        def sql = new Sql(dataSource.connection)
-        try {
-            sql.eachRow(query, params, { row ->
-                data.PATIENTID << row.patient_id
-                data.VALUE << row.raw_intensity
-                data.PROBE << row.probe_id
-                data.GENESYMBOL << row.gene_symbol
-            })
-        } finally {
-            sql.close()
+
+        Map<String, HighDimensionDataTypeResource> highDimDataTypeResourceCache = [:]
+        conceptKeys.each { conceptKey ->
+            highDimDataTypeResourceCache[conceptKey] = getHighDimDataTypeResourceFromConcept(conceptKey)
         }
+
+        TabularResult tabularResult
+        highDimDataTypeResourceCache.each {conceptKey, dataTypeResource ->
+            tabularResult = fetchData(resultInstanceId, conceptKey, dataTypeResource)
+
+            def assayList = tabularResult.indicesList
+            tabularResult.each { DataRow row ->
+                assayList.each {AssayColumn assayColumn ->
+                    data.PATIENTID << assayColumn.patient.id
+                    data.VALUE << row[assayColumn]
+                    data.PROBE << row.label
+                    data.GENESYMBOL << row.bioMarker
+                }
+            }
+
+            tabularResult.close()
+        }
+
         return data
     }
+
+    private HighDimensionDataTypeResource getHighDimDataTypeResourceFromConcept(String conceptKey) {
+        def constraints = []
+
+        constraints << highDimensionResource.createAssayConstraint(
+                AssayConstraint.DISJUNCTION_CONSTRAINT,
+                subconstraints: [
+                        (AssayConstraint.ONTOLOGY_TERM_CONSTRAINT):
+                                [concept_key: conceptKey]])
+
+        def assayMultiMap = highDimensionResource.
+                getSubResourcesAssayMultiMap(constraints)
+
+        HighDimensionDataTypeResource dataTypeResource = assayMultiMap.keySet()[0]
+        return dataTypeResource
+    }
+
+    private TabularResult fetchData(Long patientSetId, String ontologyTerm,
+                                    HighDimensionDataTypeResource dataTypeResource) {
+
+        List<AssayConstraint> assayConstraints = []
+        assayConstraints.add(
+                dataTypeResource.createAssayConstraint(
+                        AssayConstraint.PATIENT_SET_CONSTRAINT,
+                        result_instance_id: patientSetId))
+        assayConstraints.add(
+                dataTypeResource.createAssayConstraint(
+                        AssayConstraint.ONTOLOGY_TERM_CONSTRAINT,
+                        concept_key: ontologyTerm))
+
+        List<DataConstraint> dataConstraints = []
+
+        Projection projection = dataTypeResource.createProjection([:], Projection.DEFAULT_REAL_PROJECTION)
+
+        dataTypeResource.retrieveData(assayConstraints, dataConstraints, projection)
+    }
+
 
     private ClinicalVariable createClinicalVariable(OntologyTerm term) {
         clinicalDataResourceService.createClinicalVariable(
