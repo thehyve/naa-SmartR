@@ -22,7 +22,35 @@ var etriksPanel = new Ext.Panel({
     }
 });
 
-var smartRPanel = etriksPanel;
+var smartRPanel = new Ext.Panel({
+    id: 'smartRPanel',
+    title: 'SmartR',
+    region: 'center',
+    split: true,
+    height: 90,
+    layout: 'fit',
+    collapsible: true,
+    autoScroll: true,
+    tbar: new Ext.Toolbar({
+        id: 'smartRToolbar',
+        title: 'R Scripts',
+        items: []
+    }),
+    autoLoad: {
+        url: pageInfo.basePath + '/smartR/index',
+        method: 'POST',
+        evalScripts: false
+    },
+    listeners: {
+        render: function(panel) {
+            panel.body.on('click', function() {
+                if (typeof updateOnView === "function") {
+                    updateOnView();
+                }
+            });
+        }
+    }
+});
 
 /**
  *   Renders the input form for entering the parameters for a visualization/script

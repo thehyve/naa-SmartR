@@ -4,9 +4,9 @@
 
     <h1 class="txt"> SmartR - Dynamic Data Visualization and Interaction</h1>
     <br>
-    <g:select name="scriptSelect" id="scriptSelect" class='txt' from="${scriptList}"
+    <g:select name="scriptSelect" id="scriptSelect" class='txt' from="${heimScriptList}"
               noSelection="['':'Choose an algorithm']"
-              onchange="changeInputDIV()" />
+              onchange="changeInput()" />
     %{--Input placeholder--}%
     <div id="inputDIV" style="margin-top: 20px;"></div>
 %{--<div id="index" style="text-align: center">--}%

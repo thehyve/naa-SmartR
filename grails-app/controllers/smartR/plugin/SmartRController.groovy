@@ -12,27 +12,28 @@ class SmartRController {
     SessionService sessionService
     def smartRService
     def scriptExecutorService
+    def eaeService
 
     static layout = 'smartR'
 
     def index() {
         [
                 scriptList: sessionService.availableWorkflows(),
+                heimScriptList : sessionService.heimWorkflows()
                 //legacyScriptList: sessionService.legacyWorkflows(), FIXME display rest original scripts
         ]
     }
 
     def computeResults = {
         params.init = params.init == null ? true : params.init // defaults to true
-        smartRService.runScript(params)
-        render ''
+        def retCode = smartRService.runScript(params)
+        render retCode.toString()
     }
 
     def reComputeResults = {
         params.init = false
-        redirect controller: 'SmartR',
-                 action: 'computeResults', 
-                 params: params
+        def retCode = smartRService.runScript(params)
+        render retCode.toString()
     }
 
     // For handling results yourself
@@ -42,7 +43,8 @@ class SmartRController {
         if (! success) {
             render new JsonBuilder([error: results]).toString()
         } else {
-            render results
+            // render results
+            render results.json // TODO: return json AND image
         }
     }
 
@@ -53,10 +55,11 @@ class SmartRController {
             render results
         } else {
             render template: "/visualizations/out${FilenameUtils.getBaseName(params.script)}",
-                    model: [results: results]
+                    model: [results: results.json, image: results.img.toString()]
+                   // model: [results: results]
         }       
     }
-    
+
     /**
     *   Renders the input form for initial script parameters
     */
@@ -64,7 +67,7 @@ class SmartRController {
         if (! params.script) {
             render 'Please select a script to execute.'
         } else {
-            render template: "/heim/in${FilenameUtils.getBaseName(params.script).capitalize()}"
+            render template: "/smartR/in${FilenameUtils.getBaseName(params.script)}"
         }
     }
 
@@ -75,7 +78,8 @@ class SmartRController {
         if (! params.script) {
             render 'Please select a script to execute.'
         } else {
-            render template: "/smartR/in${FilenameUtils.getBaseName(params.script).capitalize()}"
+            //render template: "/smartR/in${FilenameUtils.getBaseName(params.script).capitalize()}"
+            render template: "/heim/in${FilenameUtils.getBaseName(params.script).capitalize()}"
         }
     }
 
@@ -84,12 +88,17 @@ class SmartRController {
     }
 
     /**
-    *   Called to get the path to smartR.js such that the plugin can be loaded in the datasetExplorer
-    */
+     *   Go to eTRIKS Analytical Engine
+     */
+    def goToEAEngine = {
+        render template: '/eae/home', model:[ hpcScriptList: eaeService.hpcScriptList]
+    }
+
     def loadScripts = {
 
         // list of required javascript files
-        def scripts = [servletContext.contextPath + pluginContextPath + '/js/smartR/smartR.js']
+        def scripts = [servletContext.contextPath + pluginContextPath + '/js/smartR/smartR.js',
+                       servletContext.contextPath + pluginContextPath + '/js/etriksEngines/engineSelection.js']
 
         // list of required css files
         def styles = []

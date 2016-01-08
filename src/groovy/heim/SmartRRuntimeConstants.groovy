@@ -17,16 +17,16 @@ class SmartRRuntimeConstants {
 
     File pluginScriptDirectory
 
-    File legacyScriptDirectory
+    File heimScriptDirectory
 
     void setPluginScriptDirectory(File dir) {
         assert dir.isDirectory()
         this.pluginScriptDirectory = dir.absoluteFile
     }
 
-    void setLegacyScriptDirectory(File dir) {
+    void setHeimScriptDirectory(File dir) {
         assert dir.isDirectory()
-        this.legacyScriptDirectory = dir.absoluteFile
+        this.heimScriptDirectory = dir.absoluteFile
     }
 
     void setRemoteScriptDirectoryDir(Object dir) {

@@ -103,11 +103,20 @@ class RScriptsSynchronizer {
     private void createZip(OutputStream destinationStream) {
         ZipOutputStream zs = new ZipOutputStream(destinationStream, Charsets.UTF_8)
         try {
-            Path basePath = constants.pluginScriptDirectory.toPath()
+            Path originalPath = constants.pluginScriptDirectory.toPath()
+            Path heimPath = constants.heimScriptDirectory.toPath()
+            Path basePath = heimPath.parent
+            assert basePath == originalPath.parent // should be siblings
 
             Files.walkFileTree(
-                    basePath,
-                    new RScriptVisitor(zs: zs, basePath: basePath))
+                    originalPath,
+                    new RScriptVisitor(zs: zs, basePath: originalPath)
+            )
+            Files.walkFileTree(
+                    heimPath,
+                    new RScriptVisitor(zs: zs, basePath: heimPath)
+            )
+
         } finally {
             if (zs) {
                 zs.close()

@@ -80,10 +80,9 @@ class SessionService implements DisposableBean {
         dir.listFiles({ File f -> f.isDirectory() && !f.name.startsWith('_') } as FileFilter)*.name
     }
 
-    @Deprecated
-    List<String> legacyWorkflows() {
-        File dir = constants.legacyScriptDirectory
-        dir.listFiles()*.name
+    List<String> heimWorkflows() {
+        File dir = constants.heimScriptDirectory
+        dir.listFiles({ File f -> f.isDirectory() && !f.name.startsWith('_') } as FileFilter)*.name
     }
 
     UUID createSession(User user, String workflowType) {
