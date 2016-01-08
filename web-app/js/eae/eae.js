@@ -119,7 +119,7 @@ function saneEAE() { // FIXME: somehow check for subset2 to be non empty iff two
     for (var i = 0; i < sanityCheckErrors.length; i++) {
         var sanityCheckError = sanityCheckErrors[i];
         if (sanityCheckError !== '') {
-            alert(sanityCheckError);
+            console.error(sanityCheckError);
             return false;
         }
     }
