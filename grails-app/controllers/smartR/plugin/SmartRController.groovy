@@ -20,7 +20,6 @@ class SmartRController {
         [
                 scriptList: sessionService.availableWorkflows(),
                 heimScriptList : sessionService.heimWorkflows()
-                //legacyScriptList: sessionService.legacyWorkflows(), FIXME display rest original scripts
         ]
     }
 
@@ -43,7 +42,6 @@ class SmartRController {
         if (! success) {
             render new JsonBuilder([error: results]).toString()
         } else {
-            // render results
             render results.json // TODO: return json AND image
         }
     }
@@ -56,7 +54,6 @@ class SmartRController {
         } else {
             render template: "/visualizations/out${FilenameUtils.getBaseName(params.script)}",
                     model: [results: results.json, image: results.img.toString()]
-                   // model: [results: results]
         }       
     }
 
@@ -78,7 +75,6 @@ class SmartRController {
         if (! params.script) {
             render 'Please select a script to execute.'
         } else {
-            //render template: "/smartR/in${FilenameUtils.getBaseName(params.script).capitalize()}"
             render template: "/heim/in${FilenameUtils.getBaseName(params.script).capitalize()}"
         }
     }
