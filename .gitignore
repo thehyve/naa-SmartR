@@ -29,6 +29,8 @@
 # "temporary" build files
 /target
 
+.DS_Store
 .idea
+/production
 *.DS_Store
 /SmartR.todo

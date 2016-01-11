@@ -4,10 +4,15 @@ import groovy.json.JsonBuilder
 import groovy.json.JsonSlurper
 import grails.util.Holders
 import grails.util.Environment
-import groovy.io.FileType
+import heim.SmartRRuntimeConstants
+import org.springframework.beans.factory.annotation.Autowired
+import sun.tools.java.RuntimeConstants
 
 
 class SmartRService {
+
+    @Autowired
+    private SmartRRuntimeConstants smartRRuntimeConstants
 
     def DEBUG = Environment.current == Environment.DEVELOPMENT
     def DEBUG_TMP_DIR = '/tmp/'
@@ -110,10 +115,13 @@ class SmartRService {
     }
 
     def createParameterMap(params) {
+
         def parameterMap = [:]
+        def rpath = smartRRuntimeConstants.remoteScriptDirectoryDir
+
         parameterMap['init'] = params.init.toBoolean()
         parameterMap['script'] = params.script
-        parameterMap['scriptDir'] = getWebAppFolder() + '/Scripts/smartR/'
+        parameterMap['scriptDir'] = rpath.toString() + '/smartR/'
         parameterMap['result_instance_id1'] = params.int('result_instance_id1')
         parameterMap['result_instance_id2'] = params.int('result_instance_id2')
         parameterMap['settings'] = params.settings

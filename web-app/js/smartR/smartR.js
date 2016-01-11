@@ -445,6 +445,24 @@ function getMaxWidth(elements) {
 }
 
 /**
+*   Checks if array is sorted (descending)
+*
+*   @param {[]} arr: arbitray array
+*   @return {bool}: true if array is sorted descending, false otherwise
+*/
+function isSorted(arr) {
+    var sorted = true;
+
+    for (var i = 0, len = arr.length - 1; i < len; i++) {
+        if (arr[i][1] < arr[i+1][1]) {
+            sorted = false;
+            break;
+        }
+    }
+    return sorted;
+}
+
+/**
 *   Compares two arrays with each other
 *
 *   @param {[]} arr1: first array
@@ -667,7 +685,7 @@ function sane() { // FIXME: somehow check for subset2 to be non empty iff two co
     for (var i = 0; i < sanityCheckErrors.length; i++) {
         var sanityCheckError = sanityCheckErrors[i];
         if (sanityCheckError !== '') {
-            alert(sanityCheckError);
+            console.error(sanityCheckError);
             return false;
         }
     }
@@ -750,7 +768,7 @@ function renderResults(callback, data) {
             setTimeout(renderResults(callback, data), 5000);
         } else if (response.error) {
             jQuery('#submitButton').prop('disabled', false);
-            alert(response.error);
+            console.error(response.error);
         } else {
             jQuery('#submitButton').prop('disabled', false);
             callback(response);
@@ -791,7 +809,7 @@ function computeResults(callback, data, init, redraw) {
                 jQuery("#outputDIV").html('');
             }
             jQuery('#submitButton').prop('disabled', false);
-            alert(retCodes[response]);
+            console.error(retCodes[response]);
         }
     }).fail(function(_, __, error){
         if (redraw) {
@@ -845,6 +863,23 @@ function changeInputDIV() {
     }).done(function(response) {
         jQuery("#inputDIV").html(response);
         updateInputView();
+    }).fail(function() {
+        jQuery("#inputDIV").html("Coult not render input form. Probably you lost network connection.");
+    });
+}
+
+/**
+*   Renders the input form for entering the parameters for a visualization/script
+*/
+function changeInput() {
+    jQuery("#outputDIV").html("");
+    jQuery.ajax({
+        url: pageInfo.basePath + '/SmartR/renderInput',
+        type: "POST",
+        timeout: 1.8e+6,
+        data: {'script': jQuery('#scriptSelect').val()}
+    }).done(function(serverAnswer) {
+        jQuery("#inputDIV").html(serverAnswer);
     }).fail(function() {
         jQuery("#inputDIV").html("Coult not render input form. Probably you lost network connection.");
     });
